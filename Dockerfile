@@ -1,33 +1,68 @@
-FROM php:8.3-cli-alpine
+# =========================
+# STAGE 1: Build Frontend (Vite)
+# =========================
+FROM node:20-alpine AS node-builder
 
 WORKDIR /app
 
+# Install dependencies
+COPY package*.json ./
+RUN npm install
+
+# Copy source & build
+COPY . .
+RUN npm run build
+
+
+# =========================
+# STAGE 2: Laravel Runtime
+# =========================
+FROM php:8.3-cli-alpine
+
+# Install system dependencies
 RUN apk add --no-cache \
-    git \
-    unzip \
-    libzip-dev \
+    bash \
+    curl \
     libpng-dev \
-    oniguruma-dev \
-    libxml2-dev \
-    icu-dev
+    libjpeg-turbo-dev \
+    freetype-dev \
+    zip \
+    unzip \
+    git \
+    oniguruma-dev
 
 # Install PHP extensions
-RUN docker-php-ext-install \
+RUN docker-php-ext-configure gd \
+    --with-freetype \
+    --with-jpeg \
+    && docker-php-ext-install \
     pdo \
     pdo_mysql \
     mbstring \
-    zip \
-    intl
+    exif \
+    pcntl \
+    bcmath \
+    gd
 
-# Composer
+# Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
+WORKDIR /var/www
+
+# Copy project source
 COPY . .
 
-RUN composer install --no-dev --optimize-autoloader
+# Install Laravel dependencies (tanpa scripts biar aman dari error .env)
+RUN composer install --no-dev --optimize-autoloader --no-scripts
 
+# Copy hasil build Vite dari stage 1
+COPY --from=node-builder /app/public/build /var/www/public/build
+
+# Set permission
 RUN chown -R www-data:www-data storage bootstrap/cache
 
+# Expose port artisan serve
 EXPOSE 8000
 
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+# Run Laravel
+CMD php artisan serve --host=0.0.0.0 --port=8000
