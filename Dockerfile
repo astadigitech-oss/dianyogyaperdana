@@ -8,10 +8,18 @@ RUN apk add --no-cache \
     libzip-dev \
     libpng-dev \
     oniguruma-dev \
-    libxml2-dev
+    libxml2-dev \
+    icu-dev
 
-RUN docker-php-ext-install pdo pdo_mysql mbstring zip
+# Install PHP extensions
+RUN docker-php-ext-install \
+    pdo \
+    pdo_mysql \
+    mbstring \
+    zip \
+    intl
 
+# Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 COPY . .
