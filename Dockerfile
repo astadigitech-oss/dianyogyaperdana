@@ -46,7 +46,7 @@ RUN docker-php-ext-configure gd \
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-WORKDIR /var/www
+WORKDIR /app
 
 COPY . .
 
